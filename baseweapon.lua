@@ -83,6 +83,11 @@ function BaseWeapon:GiveTo(player: Player)
 		
 		self.animations = {}
 
+		self.attackAnimInfo = {
+			numberOfAttackAnims = 0,
+			lastAttackAnim = 0
+		}
+
 		local grip = self.model:FindFirstChild("Grip")
 		local handle : Motor6D = Instance.new("Motor6D", grip)
 		handle.Part0 = player.Character.Torso
@@ -92,13 +97,20 @@ function BaseWeapon:GiveTo(player: Player)
 		loadWeaponAnimation:FireClient(self.holder, self.name, self.model:FindFirstChild("Animations"):GetChildren())
 		
 		local animator : Animator = player.Character:FindFirstChild("Animator", true)
-		for _, anim : Animation in self.model:FindFirstChild("Animations"):GetChildren() do
-			self.animations[anim.Name] = {
-				Play = function(animations, fadeTime: number, weight: number, speed: number)
-					playWeaponAnimation:FireClient(self.holder, self.name, anim.Name, fadeTime, weight, speed)
+		for _, anim : Animation in self.model:FindFirstChild("Animations"):GetDescendants() do
+			if anim:IsA("Animation") then
+				local animTable
+				if string.find(anim.Name, "Attack") ~= nil then
+					self.attackAnimInfo.numberOfAttackAnims += 1
 				end
-			}
-			print("Set anim: "..anim.Name)
+				self.animations[anim.Name] = {
+					Play = function(animations, fadeTime: number, weight: number, speed: number)
+						playWeaponAnimation:FireClient(self.holder, self.name, anim.Name, fadeTime, weight, speed)
+					end,
+					Track = anim
+				}
+				print("Set anim: "..anim.Name)
+			end
 		end
 		
 		local event : RemoteEvent = player.Character.Events:WaitForChild("WeaponEvent")
@@ -135,7 +147,15 @@ function BaseWeapon:Unequip()
 end
 
 function BaseWeapon:PrimaryClick()                          -- left click
-	print("Primary click")
+	local attack = 0
+	repeat
+		attack = math.random(1,self.attackAnimInfo.numberOfAttackAnims)
+	until attack ~= self.attackAnimInfo.lastAttackAnim
+	
+	self.attackAnimInfo.lastAttackAnim = attack
+
+	self.animations["Attack"..attack]:Play()
+	self.animations["Attack"..attack].Anim
 end
 
 function BaseWeapon:PrimaryDown()
