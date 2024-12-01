@@ -2,53 +2,49 @@
 local plr = game:GetService("Players").LocalPlayer
 local cas = game:GetService("ContextActionService")
 
-local RE_primary : RemoteEvent = nil
-local RE_secondary : RemoteEvent = nil
-local RE_tertiary : RemoteEvent= nil
+-- CONFIG
+local primaryButton = Enum.UserInputType.MouseButton1
+local secondaryButton = Enum.UserInputType.MouseButton2
+local tertiaryButton = Enum.KeyCode.R
+local switchWeaponButton = Enum.KeyCode.Q
+
+-- VARIABLES
+local button_hold = 0
+local heartbeat
 
 function Primary(actionName : string, inputState : Enum.UserInputState, inputObject : InputObject)
-	if not RE_primary then
-		RE_primary = plr.Character.Events:FindFirstChild("RE_primary")
-	end
-	
-	RE_primary:FireServer(inputState)
+	script.RE_primary:FireServer(inputState)
+	return Enum.ContextActionResult.Pass
 end
 
 function Secondary(actionName : string, inputState : Enum.UserInputState, inputObject : InputObject)
-	if not RE_secondary then
-		RE_secondary = plr.Character.Events:FindFirstChild("RE_secondary")
-	end
-	
-	RE_secondary:FireServer(inputState)
+	script.RE_secondary:FireServer(inputState)
+	return Enum.ContextActionResult.Pass
 end
 
 function Tertiary(actionName : string, inputState : Enum.UserInputState, inputObject : InputObject)
-	if not RE_tertiary then
-		RE_tertiary = plr.Character.Events:FindFirstChild("RE_tertiary")
+	script.RE_tertiary:FireServer(inputState)
+	return Enum.ContextActionResult.Pass
+end
+
+function Switch(actionName : string, inputState : Enum.UserInputState, inputObject : InputObject)
+	if inputState == Enum.UserInputState.Begin then
+		button_hold = tick()
+		heartbeat = game["Run Service"].Heartbeat:Connect(function()
+			if tick() - button_hold >= 0.5 then
+				-- UNEQUIP ALL WEAPONS
+				script.RE_holster:FireServer(inputState)
+				heartbeat:disconnect()
+			end
+		end)
+	elseif inputState == Enum.UserInputState.End and tick() - button_hold < 0.5 then
+		-- SWITCH WEAPONS
+		script.RE_switch:FireServer(inputState)
+		heartbeat:disconnect()
 	end
-	
-	RE_tertiary:FireServer(inputState)
 end
 
-function EnableWeaponInterface()
-	cas:BindAction("Primary", Primary, true, Enum.UserInputType.MouseButton1)
-	cas:BindAction("Secondary", Secondary, true, Enum.KeyCode.E)
-	cas:BindAction("Tertiary", Tertiary, true, Enum.KeyCode.R)
-end
-
-function DisableWeaponInterface()
-	cas:UnbindAction("Primary")
-	cas:UnbindAction("Secondary")
-	cas:UnbindAction("Tertiary")
-end
-
-local WeaponEquippedEvent : RemoteEvent = plr.Character.Events:WaitForChild("WeaponEvent")
-
-WeaponEquippedEvent.OnClientEvent:Connect(function(hasWeapon)
-	if hasWeapon then
-		print("Player has a weapon")
-		EnableWeaponInterface()
-	else
-		DisableWeaponInterface()
-	end
-end)
+cas:BindAction("Primary", Primary, true, primaryButton)
+cas:BindAction("Secondary", Secondary, true, secondaryButton)
+cas:BindAction("Tertiary", Tertiary, true, tertiaryButton)
+cas:BindAction("Switch", Switch, true, switchWeaponButton)

@@ -1,9 +1,10 @@
 local ReplStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Modules, Events = ReplStorage:WaitForChild("Modules")
 
 local Entity = require(Modules:WaitForChild("Entity"))
-local Weapon = Modules:WaitForChild("BaseWeapon")
-local MeleeWeapon = require(Weapon:WaitForChild("MeleeWeapon"))
+local WeaponHelper = require(ServerScriptService:WaitForChild("WeaponHelper"))
+--local WeaponManager = require(game.ServerScriptService.WeaponManager)
 
 local Players = game:GetService("Players")
 local PlayerList = {}
@@ -14,7 +15,9 @@ local function onPlayerAdded(Player: Player)
 		Character.PrimaryPart = Character:WaitForChild("HumanoidRootPart")
 		
 		-- Create Entity for Character
-		local CharacterEntity = Entity.new(Character, {"Health", "Defense", "Stamina"})
+		local CharacterEntity = Entity.new(Character, {"Health", "Defense", "Stamina", "Weapon", "Player"})
+		CharacterEntity.Statistics.MaxHealth = 100
+		CharacterEntity.Health = 100
 		
 		-- Block Placement and Carry
 		local newWeldConstraint: WeldConstraint = Instance.new("WeldConstraint", Character.PrimaryPart)
@@ -29,13 +32,14 @@ local function onPlayerAdded(Player: Player)
 		newLineVelocity.MaxForce = math.huge
 		newLineVelocity.Enabled = false
 		
-		local katana = MeleeWeapon.new(game.ReplicatedStorage.Weapons:FindFirstChild("Katana"))
-		-- Weapon Give
+		-- Get DataStore
+		-- Load equipped weapons
 		
-		katana:GiveTo(Player)
-		PlayerList[Player.Name]["weapon"] = katana
-		
-		katana:Equip()
+		-- WeaponManager handle weapons not anymore biyatch
+		print("Character respawned")
+		WeaponHelper.GiveWeapon(CharacterEntity, "Katana", 1)
+		WeaponHelper.GiveWeapon(CharacterEntity, "Katana1", 2)
+		--WeaponManager.SwitchWeapon(Player)
 
 	end
 	
@@ -57,6 +61,6 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
 	if PlayerList[player.Name] then
-		PlayerList[player.Name]["weapon"]:Destroy()
+		PlayerList[player.Name] = nil
 	end
 end)

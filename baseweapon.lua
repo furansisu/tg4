@@ -1,13 +1,24 @@
 local BaseWeapon = {}
 BaseWeapon.__index = BaseWeapon
 
+-- MODULES
+local PhysicsMaster = require(game.ReplicatedStorage.Modules.PhysicsMaster)
+local RaycastHitbox = require(game.ReplicatedStorage.Modules.RaycastHitboxV4)
+local DamageModule = require(game.ReplicatedStorage.Modules.DamageModule)
+
+local InputHandler = require(script.InputHandler)
+local AnimationHandler = require(script.AnimationHandler)
+local SoundHandler = require(script.SoundHandler)
+local WeldHandler = require(script.WeldHandler)
+
+local WeaponDatabase = require(game.ReplicatedStorage.Databases.WeaponDatabase)
+
 -- VARIABLES
 local ReplStorage = game:GetService("ReplicatedStorage")
 local Events = ReplStorage:WaitForChild("Events")
-local loadWeaponAnimation, playWeaponAnimation = Events:WaitForChild("loadWeaponAnimation"), Events:WaitForChild("playWeaponAnimation")
+
 
 -- CONFIG
-hold_threshold = 0.2 --time it takes when holding down a button before it is not considered a click anymore
 
 function BaseWeapon.new(model: Model)
 	local self = setmetatable({}, BaseWeapon)
@@ -16,112 +27,50 @@ function BaseWeapon.new(model: Model)
 	self.name = model.Name
 	self.holder = nil
 	self.equipped = false
-	self.stats = model:FindFirstChild("Info")               -- folder
-	self.sounds = model:FindFirstChild("Sounds")
+	self.stats = model:FindFirstChild("Info")               -- folder	
+	SoundHandler.initializeSounds(self)
+	self.slot = 0
 
 	local events_folder = Instance.new("Folder", model)
 	events_folder.Name = "Events"
-
+	
 	return self
 end
 
-function BaseWeapon:GiveTo(player: Player)
-	if player then
-		self.holder = player
-		self.model.Parent = player.Character
-		
-		print(self.name .. " given to " .. player.Name)
-		
-		local RE_primary = player.Character.Events:FindFirstChild("RE_primary")
-		local RE_secondary = player.Character.Events:FindFirstChild("RE_secondary")
-		local RE_tertiary = player.Character.Events:FindFirstChild("RE_tertiary")
-		
-		self.primary_hold_time = 0
-		self.primary_connection = RE_primary.OnServerEvent:Connect(function(player : Player, inputState : Enum.UserInputState)
-			if not self.equipped then return end
-			if inputState == Enum.UserInputState.Begin then
-				self:PrimaryDown()
-				self.primary_hold_time = tick()
-			elseif inputState == Enum.UserInputState.End then
-				local hold_duration = tick() - self.primary_hold_time
-				if hold_duration < hold_threshold then
-					self:PrimaryClick() 
-				end
-				self:PrimaryUp()
-			end
-		end)
-
-		self.secondary_hold_time = 0
-		self.secondary_connection = RE_secondary.OnServerEvent:Connect(function(player : Player, inputState : Enum.UserInputState)
-			if not self.equipped then return end
-			if inputState == Enum.UserInputState.Begin then
-				self:SecondaryDown()
-				self.secondary_hold_time = tick()
-			elseif inputState == Enum.UserInputState.End then
-				local hold_duration = tick() - self.secondary_hold_time
-				if hold_duration < hold_threshold then
-					self:SecondaryClick() 
-				end
-				self:SecondaryUp()
-			end
-		end)
-
-		self.tertiary_hold_time = 0
-		self.tertiary_connection = RE_tertiary.OnServerEvent:Connect(function(player : Player, inputState : Enum.UserInputState)
-			if not self.equipped then return end
-			if inputState == Enum.UserInputState.Begin then
-				self:TertiaryDown()
-				self.tertiary_hold_time = tick()
-			elseif inputState == Enum.UserInputState.End then
-				local hold_duration = tick() - self.tertiary_hold_time
-				if hold_duration < hold_threshold then
-					self:TertiaryClick() 
-				end
-				self:TertiaryUp()
-			end
-		end)
-		
-		self.animations = {}
-
-		self.attackAnimInfo = {
-			numberOfAttackAnims = 0,
-			lastAttackAnim = 0
-		}
-
-		local grip = self.model:FindFirstChild("Grip")
-		local handle : Motor6D = Instance.new("Motor6D", grip)
-		handle.Part0 = player.Character.Torso
-		handle.Part1 = grip
-		print("Created weld")
-		
-		loadWeaponAnimation:FireClient(self.holder, self.name, self.model:FindFirstChild("Animations"):GetChildren())
-		
-		local animator : Animator = player.Character:FindFirstChild("Animator", true)
-		for _, anim : Animation in self.model:FindFirstChild("Animations"):GetDescendants() do
-			if anim:IsA("Animation") then
-				local animTable
-				if string.find(anim.Name, "Attack") ~= nil then
-					self.attackAnimInfo.numberOfAttackAnims += 1
-				end
-				self.animations[anim.Name] = {
-					Play = function(animations, fadeTime: number, weight: number, speed: number)
-						playWeaponAnimation:FireClient(self.holder, self.name, anim.Name, fadeTime, weight, speed)
-					end,
-					Track = anim
-				}
-				print("Set anim: "..anim.Name)
-			end
-		end
-		
-		local event : RemoteEvent = player.Character.Events:WaitForChild("WeaponEvent")
-		event:FireClient(player, true)
-		return true
+function BaseWeapon:GiveTo(Entity: Entity, slot : number)
+	self.holder = Entity
+	self.model.Parent = self.holder.Model
+	
+	if not self.holder.Weapons[slot] then
+		self.holder.Weapons[slot] = self
 	else
-		return false
+		error("Weapon ".. self.name.. " cannot be given to ".. Entity.name.. "; slot ".. slot.. " is occupied")
 	end
+	
+	self.slot = slot
+	
+	WeaponDatabase.ApplyDataToWeapon(self)
+	
+	print(self.name .. " given to " .. Entity.Name)
+	
+	---->> DEFINING SOME VARIABLES
+	self.animations = {}
+	
+	---->> INPUT PARTY
+	InputHandler.controlInput(self)
+	----<<<
+	
+	---->> ANIMATION PARTY
+	AnimationHandler.initializeAnimations(self)
+	----<<
+	
+	------------------------------ ITS TIME TO PARTY SHUT THE PUCK UP
+	self.ready = true
+	return true
 end
 
 function BaseWeapon:Equip()
+	if self.equipped == true then return end
 	if not self.holder then 
 		warn(self.name .. " couldn't be equipped: No holder") 
 		return
@@ -133,29 +82,33 @@ function BaseWeapon:Equip()
 	self.animations["IdleLoop"]:Play()
 	
 	-- do weld stuff
+	self.handleWeld.Enabled = true
+	self.handleUnequipped.Enabled = false
+	
+	self.sounds["Equip"]:Play()
 end
 
 function BaseWeapon:Unequip()
+	if self.equipped == false then return end
 	if not self.holder then
 		warn(self.name .. " couldn't be unequipped: No holder")
 		return
 	end
 	
-	self.animations["IdleLoop"]:Stop()
+	for _, anim in self.animations do
+		anim:Stop()
+	end
+	self.handleWeld.Enabled = false
+	self.handleUnequipped.Enabled = true
 	self.equipped = false
-	-- do more weld stuff
+	
+	self.sounds["Unequip"]:Play()
 end
 
-function BaseWeapon:PrimaryClick()                          -- left click
-	local attack = 0
-	repeat
-		attack = math.random(1,self.attackAnimInfo.numberOfAttackAnims)
-	until attack ~= self.attackAnimInfo.lastAttackAnim
-	
-	self.attackAnimInfo.lastAttackAnim = attack
+--------------------------------------------------------------------------
 
-	self.animations["Attack"..attack]:Play()
-	self.animations["Attack"..attack].Anim
+function BaseWeapon:PrimaryClick()                          -- left click
+	print("Primary click")
 end
 
 function BaseWeapon:PrimaryDown()
@@ -195,6 +148,7 @@ function BaseWeapon:TertiaryUp()
 end
 
 function BaseWeapon:Destroy()
+	self:Unequip()
 	self.model:Destroy()
 	self = nil
 end
