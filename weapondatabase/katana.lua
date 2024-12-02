@@ -46,9 +46,6 @@ local function stopAttack(self)
 			connection:Disconnect()
 		end
 	end
-	if self.attackAnimInfo.walkSpeedDelayTask then
-		task.cancel(self.attackAnimInfo.walkSpeedDelayTask)
-	end
 	self.holder.Model.Humanoid.WalkSpeed = self.attackAnimInfo.originalWalkSpeed
 	stopHitDetection(self)
 end
@@ -58,8 +55,6 @@ local Katana = {}
 function Katana:loadSelfData()
 	self.clickDelay = 0.5
 	self.attackAnimInfo = {
-		walkSpeedDelayTask = nil,
-		originalWalkSpeed = 16,
 		numberOfAttackAnims = 2,
 		lastAttackAnim = 1,
 		lastAttackTime = 0,

@@ -15,6 +15,7 @@ local Components = {
 	Stamina = require(script.Stamina),
 	Weapon = require(script.Weapon),
 	Player = require(script.Player),
+	HitStun = require(script.HitStun)
 }
 --<<
 
