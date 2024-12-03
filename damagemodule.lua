@@ -4,18 +4,33 @@ local RE_indicator = game.ReplicatedStorage.Events:WaitForChild("DamageIndicator
 
 local EntityModule = require(game.ReplicatedStorage.Modules.Entity)
 
-function DamageModule.damage(source, target : Instance, dmg)
+function DamageModule.damage(source, target: Instance, dmg)
+	-->> Block of Checks
 	if target:IsA("BasePart") then target = target:FindFirstAncestorWhichIsA("Model") end
 	local hum : Humanoid = target:FindFirstChild("Humanoid", true)
 	if not hum then warn("Cannot damage something without health / humanoid") return false end
-	
 	local entity = EntityModule.getEntityFromModel(target)
-	
 	if source == entity then warn("Cannot damage oneself?") return false end
+	--<<
+	
+	-->> Check if Target Entity being attacked is holding a weapon
+	local isHoldingWeapon = entity.EquippedSlot ~= 0 and entity.EquippedSlot ~= nil
+	local weaponCanBlock = isHoldingWeapon and entity.Weapons[entity.EquippedSlot].isBlocking ~= nil
+	
+	-->> If holding a weapon and entity is blocking  
+	-->>-->> Nullify damage and damage stamina
+	if weaponCanBlock and entity.Weapons[entity.EquippedSlot].isBlocking then
+		local defense = entity.Statistics.Defense or 0
+		local staminaDamageAmount = math.clamp(dmg - defense, 0, math.huge)/100
+		dmg = 0
+		
+		-->> Does entity have stamina
+		if entity.Stamina ~= nil then
+			entity:SpendStamina(staminaDamageAmount)
+		end
+	end
 	
 	if entity then
-		print("Found entity: ")
-		print(entity)
 		entity:Damage(dmg)
 	else
 		return false

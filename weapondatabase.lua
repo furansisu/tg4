@@ -8,11 +8,18 @@ for _, Module in pairs(script:GetChildren()) do
 end
 
 function WeaponDatabase:ApplyDataToWeapon()
-	if not Modules[self.name] then return warn("Weapon name has no database") end
-	for index, value in pairs(Modules[self.name]) do
-		self[index] = value
+	for State, Action in pairs(self.Actions) do
+		if Modules[Action] then
+			Modules[Action].loadSelfData(self)
+			for FunctionName, Function in pairs(Modules[Action]) do
+				if string.find(FunctionName, State) then
+					self[FunctionName] = Function
+				end
+			end
+		else
+			warn("Weapon ".. self.name.. " wants ".. Action.. " but it doesnt exist")
+		end
 	end
-	self:loadSelfData()
 end
 
 return WeaponDatabase

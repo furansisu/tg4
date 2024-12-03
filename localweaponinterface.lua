@@ -12,18 +12,47 @@ local switchWeaponButton = Enum.KeyCode.Q
 local button_hold = 0
 local heartbeat
 
+-- input buffer
+local lastInput = {
+	action = nil,
+	inputState = nil,
+	inputTime = 0,
+}
+
 function Primary(actionName : string, inputState : Enum.UserInputState, inputObject : InputObject)
+	if lastInput.action ~= actionName and tick() - lastInput.inputTime <= 0.1 then
+		return
+	end
+	
 	script.RE_primary:FireServer(inputState)
+	lastInput.action = actionName
+	lastInput.inputState = inputState
+	lastInput.inputTime = tick()
+
 	return Enum.ContextActionResult.Pass
 end
 
 function Secondary(actionName : string, inputState : Enum.UserInputState, inputObject : InputObject)
+	if lastInput.action ~= actionName and tick() - lastInput.inputTime <= 0.1 then
+		return
+	end
+	
 	script.RE_secondary:FireServer(inputState)
+	lastInput.action = actionName
+	lastInput.inputState = inputState
+	lastInput.inputTime = tick()
 	return Enum.ContextActionResult.Pass
 end
 
 function Tertiary(actionName : string, inputState : Enum.UserInputState, inputObject : InputObject)
+	if lastInput.action ~= actionName and tick() - lastInput.inputTime <= 0.1 then
+		return
+	end
+
 	script.RE_tertiary:FireServer(inputState)
+	lastInput.action = actionName
+	lastInput.inputState = inputState
+	lastInput.inputTime = tick()
 	return Enum.ContextActionResult.Pass
 end
 

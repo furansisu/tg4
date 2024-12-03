@@ -2,19 +2,20 @@ local Body = {}
 Body.__index = Body
 
 function Body.new(Entity)
+	print("Creating BODY component")
 	-->> ASSIGN THE VARIABLES
 	-- bools
 	Entity.Ragdolled = false
 	Entity.Stilled = false
 
-	Entity.Walkspeed = Entity.Model.Humanoid.Walkspeed
+	Entity.WalkSpeed = Entity.Model.Humanoid.WalkSpeed
 	Entity.TaskStill = nil
 
 	-->> GIVE THE ENTITY THE FUNCTIONS
 	Entity.Still = Body.Still
 	Entity.Unstill = Body.Unstill
 	Entity.Interrupt = Body.Interrupt
-	Entity.Knockback = Body.Knockback
+	--Entity.Knockback = Body.Knockback
 end
 
 -->> self IS STILL ENTITY
@@ -22,17 +23,21 @@ end
 --- Makes the entity stop walking / moving for given amount of time (seconds)
 function Body:Still(seconds : number)
 	-- when the player gets damaged, does an attack, stunned, etc
+	
 	self.Stilled = true
-	self.Model.Humanoid.Walkspeed = 0
-	self.TaskStill = task.delay(seconds, function()
-		self.Model.Humanoid.Walkspeed = self.Walkspeed
-		self.Stilled = false
-	end)
+	self.Model.Humanoid.WalkSpeed = 0
+	if self.TaskStill then task.cancel(self.TaskStill) end
+	if seconds ~= 0 then
+		self.TaskStill = task.delay(seconds, function()
+			self.Model.Humanoid.WalkSpeed = self.WalkSpeed
+			self.Stilled = false
+		end)
+	end
 end
 
 function Body:Unstill()
 	if self.Stilled then
-		self.Model.Humanoid.Walkspeed = self.Walkspeed
+		self.Model.Humanoid.WalkSpeed = self.WalkSpeed
 		self.Stilled = false
 		if self.TaskStill then
 			task.cancel(self.TaskStill)
@@ -49,10 +54,15 @@ function Body:Interrupt()
 		local tracks = animator:GetPlayingAnimationTracks()
 
 		for _, track in pairs(tracks) do
-			if track.Name ~= "Idle" then
+			if string.find(track.Name, "Idle") == nil then
+				print("Stopping track: "..track.Name)
 				track:Stop()
 			end
 		end
+	end
+	if self.EquippedSlot ~= 0 then
+		print("Interrupting actions on weapon too")
+		self.Weapons[self.EquippedSlot]:InterruptAction()
 	end
 
 	--[[ other things this should do:
@@ -61,22 +71,4 @@ function Body:Interrupt()
 	]]
 end
 
-local function stopAttack(self)
-	local animationTrack = AnimationHandler.getPlayingAnimation(self, "Attack".. self.attackAnimInfo.lastAttackAnim)
-	self.animations["Attack".. self.attackAnimInfo.lastAttackAnim]:Stop()
-	if animationTrack then
-		animationTrack:Stop()
-	end
-	for index, connection in pairs(self.attackAnimInfo.Connections) do
-		if connection then
-			connection:Disconnect()
-		end
-	end
-	if self.attackAnimInfo.walkSpeedDelayTask then
-		task.cancel(self.attackAnimInfo.walkSpeedDelayTask)
-	end
-	self.holder.Model.Humanoid.WalkSpeed = self.attackAnimInfo.originalWalkSpeed
-	stopHitDetection(self)
-end
-
-return Health
+return Body
