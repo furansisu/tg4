@@ -57,7 +57,7 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
-function MeleeSwing:PrimaryClick()
+function MeleeSwing:Click()
 	if (not self.equipped) or (tick() - self.attackAnimInfo.lastAttackTime < self.clickDelay) then return end
 
 	self:InterruptAction()

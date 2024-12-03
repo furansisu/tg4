@@ -75,12 +75,12 @@ function StopBlock(self)
 	print("Last block end time: "..self.blockAnimInfo.lastBlockEndTime)
 end
 
-function MeleeBlock:SecondaryDown()
+function MeleeBlock:Down()
 	print("Secondary down")
 	StartBlock(self)
 end
 
-function MeleeBlock:SecondaryUp()
+function MeleeBlock:Up()
 	print("Secondary up")
 	StopBlock(self)
 end

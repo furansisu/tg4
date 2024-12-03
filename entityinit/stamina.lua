@@ -46,6 +46,7 @@ end
 function Stamina:SpendStamina(amount: number)
 	self.Stamina = math.clamp(self.Stamina - amount, 0, self.Statistics.MaxStamina)
 	self.Logs.lastSpentStamina = tick()
+	return self.Stamina
 end
 --<<
 

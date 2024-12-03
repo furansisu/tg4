@@ -37,6 +37,8 @@ function Health:Damage(amount: number, attacker: Entity)
 	self.Logs.lastAttackedBy = attacker
 	Events.DamageIndicator:FireAllClients(actualDmg, self.Model:GetPivot().Position)
 	self.FakeHumanoid.Health = self.Health
+
+	--- play animation
 end
 
 return Health
